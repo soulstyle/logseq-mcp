@@ -238,21 +238,21 @@ app.get('/api/graph', asyncHandler(async (req: express.Request, res: express.Res
     center: req.query.center,
     depth: req.query.depth ? parseInt(req.query.depth as string, 10) : undefined,
   });
-  const graphData = await graph.getGraph(center, depth);
+  const graphData = await graph.getGraph({ center, depth });
   res.json(graphData);
 }));
 
 // Get journal
 app.get('/api/journal', asyncHandler(async (req: express.Request, res: express.Response) => {
   const { date } = GetJournalSchema.parse(req.query);
-  const journal = await graph.getJournal(date);
+  const journal = await graph.getJournalPage(date);
   res.json(journal);
 }));
 
 // Create journal
 app.post('/api/journal', asyncHandler(async (req: express.Request, res: express.Response) => {
   const { date, template } = CreateJournalSchema.parse(req.body);
-  const journal = await graph.createJournal(date, template);
+  const journal = await graph.createJournalPage(date, template);
   res.status(201).json(journal);
 }));
 
@@ -267,7 +267,7 @@ app.post('/api/content/article', asyncHandler(async (req: express.Request, res: 
   if (data.tags) content += `\n  - 태그: ${data.tags}`;
   if (data.highlights) content += `\n  - 하이라이트:\n${data.highlights.split('\n').map(l => `    - ${l}`).join('\n')}`;
   
-  const journal = await graph.appendToJournal(today, content);
+  const journal = await graph.appendToJournalPage(today, content);
   res.status(201).json(journal);
 }));
 
@@ -281,7 +281,7 @@ app.post('/api/content/book', asyncHandler(async (req: express.Request, res: exp
   if (data.tags) content += `\n  - 태그: ${data.tags}`;
   if (data.memo) content += `\n  - 메모: ${data.memo}`;
   
-  const journal = await graph.appendToJournal(today, content);
+  const journal = await graph.appendToJournalPage(today, content);
   res.status(201).json(journal);
 }));
 
@@ -294,7 +294,7 @@ app.post('/api/content/movie', asyncHandler(async (req: express.Request, res: ex
   if (data.director) content += `\n  - 감독: ${data.director}`;
   if (data.memo) content += `\n  - 메모: ${data.memo}`;
   
-  const journal = await graph.appendToJournal(today, content);
+  const journal = await graph.appendToJournalPage(today, content);
   res.status(201).json(journal);
 }));
 
@@ -308,7 +308,7 @@ app.post('/api/content/exhibition', asyncHandler(async (req: express.Request, re
   if (data.artist) content += `\n  - 작가: ${data.artist}`;
   if (data.memo) content += `\n  - 메모: ${data.memo}`;
   
-  const journal = await graph.appendToJournal(today, content);
+  const journal = await graph.appendToJournalPage(today, content);
   res.status(201).json(journal);
 }));
 
