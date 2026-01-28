@@ -7,17 +7,18 @@ WORKDIR /app
 # Copy package files
 COPY package*.json ./
 
-# Install dependencies
-RUN npm ci --only=production
+# Install all dependencies (needed for building)
+RUN npm ci
 
 # Copy TypeScript config and source
 COPY tsconfig.json ./
 COPY src ./src
 
 # Build TypeScript
-RUN npm install --only=development && \
-    npm run build && \
-    npm prune --production
+RUN npm run build
+
+# Remove dev dependencies to reduce image size
+RUN npm prune --production
 
 # Create directory for Logseq graph mount point
 RUN mkdir -p /logseq-graph
