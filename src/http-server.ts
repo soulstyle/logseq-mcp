@@ -107,6 +107,11 @@ const CreateJournalSchema = z.object({
   template: z.string().max(MAX_CONTENT_LENGTH).optional(),
 });
 
+const AppendToJournalSchema = z.object({
+  date: z.string().max(10).optional(),
+  content: z.string().max(MAX_CONTENT_LENGTH),
+});
+
 const AddArticleSchema = z.object({
   title: z.string().max(500),
   summary: z.string().max(2000).optional(),
@@ -167,6 +172,7 @@ app.get('/', (req, res) => {
       'GET /api/graph': 'Get graph data',
       'GET /api/journal': 'Get journal entry',
       'POST /api/journal': 'Create journal entry',
+      'POST /api/journal/append': 'Append to journal (creates if needed)',
       'POST /api/content/article': 'Add article to journal',
       'POST /api/content/book': 'Add book to journal',
       'POST /api/content/movie': 'Add movie to journal',
@@ -253,6 +259,13 @@ app.get('/api/journal', asyncHandler(async (req: express.Request, res: express.R
 app.post('/api/journal', asyncHandler(async (req: express.Request, res: express.Response) => {
   const { date, template } = CreateJournalSchema.parse(req.body);
   const journal = await graph.createJournalPage(date, template);
+  res.status(201).json(journal);
+}));
+
+// Append to journal (creates if doesn't exist)
+app.post('/api/journal/append', asyncHandler(async (req: express.Request, res: express.Response) => {
+  const { date, content } = AppendToJournalSchema.parse(req.body);
+  const journal = await graph.appendToJournalPage(date, content);
   res.status(201).json(journal);
 }));
 

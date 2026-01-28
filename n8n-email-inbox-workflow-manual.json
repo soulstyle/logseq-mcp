@@ -1,0 +1,289 @@
+{
+  "name": "Email Inbox Processing (Manual)",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "manual-trigger",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        250,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "operation": "getAll",
+        "returnAll": false,
+        "limit": 100,
+        "simple": false,
+        "options": {
+          "labelIds": [
+            "Answer",
+            "Todo"
+          ],
+          "format": "full"
+        }
+      },
+      "id": "gmail-fetch",
+      "name": "Gmail - Fetch Labeled Emails",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        470,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "answer-condition",
+              "leftValue": "={{ $json.labelIds }}",
+              "rightValue": "Answer",
+              "operator": {
+                "type": "array",
+                "operation": "contains"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "switch-label-type",
+      "name": "Switch - Label Type",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        690,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extract sender name and subject from email headers\nconst headers = $input.item.json.headers || {};\nconst from = headers.from || '';\nconst subject = headers.subject || '';\n\n// Parse name from \"Name <email@example.com>\" format\nlet fullName = from;\nconst nameMatch = from.match(/^([^<]+)/);\nif (nameMatch) {\n  fullName = nameMatch[1].trim();\n}\n\n// Extract context labels that start with @\nconst labelIds = $input.item.json.labelIds || [];\nconst contextLabels = labelIds\n  .filter(label => label.startsWith('@'))\n  .map(label => `#${label}`)\n  .join(' ');\n\n// Build TODO text\nconst contextTags = contextLabels ? ` ${contextLabels}` : '';\nconst todoText = `- TODO Answer ${fullName}: ${subject} #inbox${contextTags}`;\n\nreturn {\n  json: {\n    template: todoText,\n    originalFrom: from,\n    subject: subject,\n    messageId: $input.item.json.id\n  }\n};"
+      },
+      "id": "code-answer-format",
+      "name": "Code - Format Answer TODO",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        910,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extract subject and context labels\nconst headers = $input.item.json.headers || {};\nconst subject = headers.subject || '';\n\n// Extract context labels that start with @\nconst labelIds = $input.item.json.labelIds || [];\nconst contextLabels = labelIds\n  .filter(label => label.startsWith('@'))\n  .map(label => `#${label}`)\n  .join(' ');\n\n// Build TODO text\nconst contextTags = contextLabels ? ` ${contextLabels}` : '';\nconst todoText = `- TODO ${subject} #inbox${contextTags}`;\n\nreturn {\n  json: {\n    template: todoText,\n    subject: subject,\n    messageId: $input.item.json.id\n  }\n};"
+      },
+      "id": "code-todo-format",
+      "name": "Code - Format Todo TODO",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        910,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://192.168.8.242:7842/api/journal",
+        "authentication": "none",
+        "options": {
+          "timeout": 10000
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ {\"template\": $json.template} }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        }
+      },
+      "id": "http-create-journal-answer",
+      "name": "HTTP - Create Journal Entry (Answer)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1130,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://192.168.8.242:7842/api/journal",
+        "authentication": "none",
+        "options": {
+          "timeout": 10000
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ {\"template\": $json.template} }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        }
+      },
+      "id": "http-create-journal-todo",
+      "name": "HTTP - Create Journal Entry (Todo)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1130,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "operation": "removeLabels",
+        "messageId": "={{ $json.messageId }}",
+        "labelIds": [
+          "Answer"
+        ]
+      },
+      "id": "gmail-remove-answer-label",
+      "name": "Gmail - Remove Answer Label",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        1350,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "operation": "removeLabels",
+        "messageId": "={{ $json.messageId }}",
+        "labelIds": [
+          "Todo"
+        ]
+      },
+      "id": "gmail-remove-todo-label",
+      "name": "Gmail - Remove Todo Label",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        1350,
+        400
+      ]
+    }
+  ],
+  "connections": {
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Gmail - Fetch Labeled Emails",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gmail - Fetch Labeled Emails": {
+      "main": [
+        [
+          {
+            "node": "Switch - Label Type",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch - Label Type": {
+      "main": [
+        [
+          {
+            "node": "Code - Format Answer TODO",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Code - Format Todo TODO",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code - Format Answer TODO": {
+      "main": [
+        [
+          {
+            "node": "HTTP - Create Journal Entry (Answer)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code - Format Todo TODO": {
+      "main": [
+        [
+          {
+            "node": "HTTP - Create Journal Entry (Todo)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP - Create Journal Entry (Answer)": {
+      "main": [
+        [
+          {
+            "node": "Gmail - Remove Answer Label",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP - Create Journal Entry (Todo)": {
+      "main": [
+        [
+          {
+            "node": "Gmail - Remove Todo Label",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 0,
+  "updatedAt": "2026-01-28T06:51:32.000Z",
+  "versionId": "1"
+}
